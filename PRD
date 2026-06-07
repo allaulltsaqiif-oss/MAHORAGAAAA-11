@@ -1,0 +1,1185 @@
+# PantauSiswa — Product Requirements Document (PRD)
+**Status: Revisi v2.0 — Siap Implementasi**
+**Terakhir Diperbarui: Juni 2025**
+**Penulis: Tim Pengembang PantauSiswa**
+
+---
+
+## Daftar Isi
+1. Ringkasan Eksekutif
+2. Konteks & Peluang Pasar
+3. Target Pengguna & Persona
+4. Prinsip Desain & UX
+5. Fitur MVP — Ruang Lingkup Implementasi
+6. Arsitektur Sistem
+7. Tech Stack & Justifikasi
+8. Skema Database Lengkap
+9. Desain API
+10. Arsitektur Keamanan
+11. Sistem Notifikasi & Real-Time
+12. Offline-First Architecture
+13. Error Handling & Edge Cases
+14. Alur Pengguna Lengkap
+15. Testing Strategy
+16. Deployment & DevOps
+17. Monitoring & Observabilitas
+18. Strategi Demo
+19. Post-MVP Roadmap
+20. Risiko & Mitigasi
+21. Pertimbangan Bisnis & Legal
+22. Variabel Lingkungan
+23. Lampiran & Referensi
+
+---
+
+## 1. Ringkasan Eksekutif
+
+**Nama Produk:** PantauSiswa
+
+**Tagline:** "Pantau Perkembangan & Kepulangan Anak — Cukup Satu Aplikasi."
+
+**Visi:**
+Menjadi aplikasi kolaboratif yang memudahkan guru dalam memantau perkembangan 4C (Kreativitas, Kolaborasi, Berpikir Kritis, Komunikasi) dan kepulangan siswa secara efisien, serta memberikan ketenangan bagi orang tua melalui notifikasi real-time dan laporan berkala — bahkan di sekolah dengan internet tidak stabil sekalipun.
+
+**Misi:**
+- Membantu guru mengelola 30-40 siswa per kelas tanpa beban administratif berlebih.
+- Mendeteksi dini siswa yang mulai tertinggal dalam pembelajaran.
+- Memberikan orang tua informasi akurat tentang waktu kepulangan anak dan perkembangan belajarnya.
+- Menjamin keamanan data anak dengan standar keamanan yang tidak dikompromikan.
+
+**Problem yang Diselesaikan:**
+
+| Problem | Solusi PantauSiswa | Catatan Desain |
+|---|---|---|
+| Guru kesulitan memantau perkembangan individual | Input 4C cepat: tampilkan nilai minggu lalu, guru hanya ubah yang berubah | Bukan input dari nol setiap minggu |
+| Siswa tertinggal tidak terdeteksi dini | Deteksi otomatis: 2× merah di kompetensi sama = peringatan + rekomendasi | Algoritma di frontend |
+| Orang tua cemas anak tidak langsung pulang | Notifikasi real-time + estimasi waktu pulang yang diset guru di pagi hari | Cegah kecemasan dari notifikasi terlambat |
+| Laporan perkembangan jarang dan tidak terstruktur | Laporan mingguan otomatis, kirim via WhatsApp | Format yang orang tua awam bisa pahami |
+| Guru kewalahan mengingat 40 siswa | Dashboard prioritas: yang butuh perhatian muncul di atas | Prioritas berbasis data, bukan intuisi |
+| Internet sekolah tidak stabil | Offline-first PWA dengan background sync | Fitur inti tetap berfungsi tanpa internet |
+
+---
+
+## 2. Konteks & Peluang Pasar
+
+**Pasar yang Dituju (TAM/SAM/SOM):**
+- **TAM:** ~250.000 sekolah dasar dan menengah di Indonesia (Kemendikbudristek 2024)
+- **SAM:** ~80.000 sekolah dengan rasio guru-siswa >1:30 dan akses internet dasar
+- **SOM (12 bulan pertama):** 500 sekolah via program percontohan dan kemitraan dinas pendidikan
+
+**Kompetitor & Diferensiasi:**
+
+| Kompetitor | Kelemahan | Diferensiasi PantauSiswa |
+|---|---|---|
+| Buku rapor manual | Tidak real-time, tidak ada deteksi dini | Digital, otomatis, notifikasi |
+| Aplikasi SIS | Mahal, kompleks, tidak ada fitur kepulangan | Ringan, gratis (versi dasar), unik di kepulangan |
+| Grup WhatsApp orang tua | Informasi berceceran, tidak terstruktur | Laporan terpusat, riwayat tersimpan |
+| Aplikasi presensi | Hanya kehadiran, tidak ada perkembangan | 4C + kepulangan + laporan terintegrasi |
+
+**Keunggulan Kompetitif (USP):**
+1. Satu-satunya aplikasi yang menggabungkan pemantauan perkembangan akademik + keamanan kepulangan
+2. Input 4C dengan referensi historis — guru tidak mengisi dari nol, hanya mengubah yang berubah
+3. Offline-first — berfungsi penuh tanpa internet, sinkron otomatis saat online
+4. UX yang berbeda untuk guru (kompleks) dan orang tua (sesederhana mungkin)
+5. Gratis untuk MVP
+
+---
+
+## 3. Target Pengguna & Persona
+
+**Persona 1: Guru SD — "Bu Dewi" (34 tahun)**
+- Mengajar 38 siswa kelas 4, 8 jam per hari
+- Sibuk, tidak suka aplikasi rumit, HP Android mid-range
+- Pain point: Sulit mengingat perkembangan individual. Orang tua sering komplain
+- Kebutuhan: Input cepat dengan konteks historis, tahu prioritas siswa hari ini, catat pulang mudah
+- Ekspektasi waktu: Onboarding ≤10 menit tanpa pelatihan; input harian ≤3 menit
+
+**Persona 2: Orang Tua — "Pak Andi" (40 tahun)**
+- Bekerja kantoran, anak di kelas 5, sering khawatir anak tidak langsung pulang
+- Tidak paham teknologi, tapi punya WhatsApp dan bisa buka browser
+- Pain point: Tidak tahu jam pulang anak. Cemas jika tidak ada kabar
+- Kebutuhan: Satu informasi utama — sudah/belum pulang — tanpa harus navigasi kompleks
+- Ekspektasi UX: Buka aplikasi → langsung tahu status anak → selesai
+
+**Persona 3: Kepala Sekolah — "Pak Slamet" (52 tahun)**
+- Ingin meningkatkan kualitas pemantauan, butuh laporan agregat
+- Tidak perlu akses real-time, cukup ringkasan mingguan
+- Kebutuhan: Dashboard ringkasan per kelas, identifikasi kelas/kompetensi bermasalah
+
+---
+
+## 4. Prinsip Desain & UX
+
+> **Prinsip ini wajib menjadi acuan setiap keputusan desain.**
+
+### P1 — Guru: Kontekstual, Bukan Kosong
+Input apapun harus menampilkan data historis sebagai acuan. Guru tidak boleh pernah menghadapi form kosong tanpa konteks dari minggu lalu.
+
+### P2 — Orang Tua: Satu Layar, Satu Informasi
+Dashboard orang tua harus menjawab satu pertanyaan: *"Anak saya sudah pulang?"* Semua yang lain (riwayat, laporan) adalah sekunder dan disembunyikan di balik navigasi.
+
+### P3 — Notifikasi Tidak Boleh Menambah Kecemasan
+Sistem notifikasi harus didesain dengan asumsi bahwa notifikasi yang terlambat atau tidak datang lebih berbahaya dari tidak ada notifikasi sama sekali. Solusi:
+- Guru wajib set **estimasi waktu pulang** di awal hari
+- Orang tua melihat status "Estimasi pulang: 14.00" sebagai baseline ekspektasi
+- Jika ≥30 menit melewati estimasi dan belum dicatat, guru mendapat pengingat
+
+### P4 — Offline adalah Default, Bukan Pengecualian
+Setiap fitur inti (catat kepulangan, input 4C) harus bisa digunakan tanpa internet. Sinkronisasi adalah proses background, bukan blocker.
+
+### P5 — Onboarding Zero-Friction
+Guru pertama kali buka aplikasi harus bisa impor CSV siswa dan mulai pakai dalam 10 menit tanpa membaca manual apapun.
+
+---
+
+## 5. Fitur MVP — Ruang Lingkup Implementasi
+
+### P1 — Kritis (Harus Ada Sebelum Demo)
+
+---
+
+**F1: Autentikasi Guru & Orang Tua**
+
+Deskripsi: Login terpisah untuk guru (email/NIP) dan orang tua (kode anak).
+
+Acceptance Criteria:
+- Guru login dengan email + password (Supabase Auth)
+- Orang tua login dengan kode anak 8 karakter alfanumerik (contoh: `X7K2-9MPQ`)
+- Rate limiting: maksimal 5 percobaan gagal per IP per jam, lalu locked 15 menit
+- Session tersimpan di localStorage hingga logout manual
+- Redirect otomatis ke dashboard yang sesuai (guru/orang tua)
+
+> **Perubahan dari v1:** Kode orang tua ditingkatkan dari 4-digit numerik (SIS0001) ke 8 karakter alfanumerik acak untuk mencegah brute-force. Ini kritis mengingat data kepulangan anak dapat disalahgunakan.
+
+---
+
+**F2: Manajemen Siswa oleh Guru**
+
+Deskripsi: Guru dapat menambah, mengedit, menghapus data siswa, dan mengimpor dari CSV.
+
+Acceptance Criteria:
+- Daftar siswa: nama, NIS (opsional), kode orang tua (ditampilkan + bisa disalin/cetak)
+- Kode orang tua: 8 karakter alfanumerik acak, digenerate otomatis
+- Impor CSV (kolom: nama, NIS) → kode otomatis dibuat
+- Guru bisa reset kode orang tua jika bocor (kode lama langsung tidak valid)
+- Validasi: nama tidak boleh kosong, tidak boleh ada duplikat NIS
+- Halaman onboarding khusus jika kelas masih kosong (panduan singkat impor CSV)
+
+---
+
+**F3: Input Perkembangan 4C (Mingguan) — dengan Referensi Historis**
+
+Deskripsi: Guru memilih level 🟢 Baik / 🟡 Perlu Perhatian / 🔴 Intervensi untuk setiap siswa pada 4 kompetensi, dengan nilai minggu lalu tampil sebagai acuan.
+
+Acceptance Criteria:
+- Grid/tabel siswa × 4 kompetensi
+- Setiap sel menampilkan nilai minggu lalu sebagai badge referensi kecil di sudut
+- Pilihan warna/emoji — bukan dropdown
+- Default nilai: sama dengan minggu lalu (bukan kosong) — guru hanya ubah yang berubah
+- Tersimpan per minggu (format YYYY-WW), bisa pilih minggu lalu untuk edit
+- Indikator visual jika ada siswa yang belum pernah diisi (minggu pertama)
+- Waktu input untuk 40 siswa ≤3 menit (karena tidak harus isi dari nol)
+
+> **Perubahan dari v1:** Input tidak lagi dari nol setiap minggu. Default = nilai minggu lalu. Ini mencegah guru asal klik hijau semua hanya untuk menyelesaikan kewajiban.
+
+---
+
+**F4: Catat Kepulangan (Harian) — dengan Estimasi Waktu**
+
+Deskripsi: Guru mencentang siswa yang sudah pulang. Sistem mencatat waktu. Guru juga bisa set estimasi jam pulang di pagi hari.
+
+Acceptance Criteria:
+- Di awal hari (atau saat pertama buka tab), guru diminta set **estimasi jam pulang** (default: 13.00 — bisa diubah)
+- Tab menampilkan daftar siswa belum dicatat pulang, urutkan: yang sudah melewati estimasi di atas
+- Centang siswa → waktu terekam dari perangkat guru
+- Tombol "Semua Pulang" untuk mencentang semua
+- Data per hari (YYYY-MM-DD); bisa edit waktu jika salah input
+- Jika 30 menit melewati estimasi dan masih ada siswa belum dicatat, guru dapat pengingat in-app
+- Notifikasi ke orang tua dikirim segera setelah centang
+
+---
+
+**F5: Mode Hari Libur / Agenda Sekolah**
+
+Deskripsi: Guru bisa menandai hari tertentu sebagai libur atau kegiatan khusus sehingga orang tua tidak menunggu notifikasi kepulangan.
+
+Acceptance Criteria:
+- Guru bisa set tanggal sebagai "Libur" atau "Agenda Khusus" (dengan keterangan singkat)
+- Dashboard orang tua pada hari libur menampilkan: "Hari ini libur — tidak ada notifikasi kepulangan"
+- Guru bisa input libur berulang (misal libur nasional) atau satu kali
+- Data libur tersimpan per kelas (bukan per siswa)
+
+> **Fitur baru, tidak ada di v1.** Tanpa ini, orang tua akan panik jika tidak ada notifikasi pada hari libur atau kegiatan luar kelas.
+
+---
+
+**F6: Dashboard Guru (Ringkasan & Deteksi Tertinggal)**
+
+Deskripsi: Halaman utama guru menampilkan prioritas hari ini dan statistik kelas.
+
+Acceptance Criteria:
+- Kartu ringkasan: total siswa, jumlah dengan peringatan, sudah pulang hari ini, sisa belum dicatat
+- Seksi "Perlu Perhatian Hari Ini" — siswa dengan 2× merah di kompetensi yang sama
+- Setiap peringatan disertai rekomendasi teks (templat per kompetensi)
+- Progress bar "Input Perkembangan Minggu Ini" — berapa % siswa sudah diisi
+- Daftar semua siswa (tanpa peringatan) di bawah, bisa dicari/filter
+- Jika hari libur: dashboard menampilkan mode libur, tidak ada reminder kepulangan
+
+---
+
+**F7: Laporan Otomatis ke Orang Tua**
+
+Deskripsi: Guru generate laporan mingguan berisi perkembangan 4C + riwayat kepulangan.
+
+Acceptance Criteria:
+- Tombol "Buat Laporan Minggu Ini" menghasilkan teks per siswa
+- Format: `"Ananda [nama] — Kreativitas: 🟢 Baik | Kolaborasi: 🟡 Perlu Perhatian | Riwayat pulang minggu ini: Senin 13.45, Selasa 14.10... | Rekomendasi: ..."`
+- Bahasa laporan sederhana dan mudah dipahami orang tua awam
+- Tersedia: Salin per siswa, Salin Semua, Kirim via WA (per siswa atau grup)
+- Bisa generate untuk minggu tertentu (bukan hanya minggu ini)
+- Preview laporan sebelum dikirim
+
+---
+
+**F8: Dashboard Orang Tua — Satu Layar, Satu Informasi**
+
+Deskripsi: Orang tua melihat satu informasi utama: sudah/belum pulang. Semua yang lain adalah sekunder.
+
+Acceptance Criteria:
+
+**Layar Utama:**
+- Header: nama anak + kelas
+- Status besar (mencolok): "✅ Sudah Pulang — pukul 13.45" atau "⏳ Belum Pulang — Estimasi: 14.00"
+- Jika hari libur: "🏖️ Hari ini libur — [keterangan dari guru]"
+- Tombol "Izinkan Notifikasi" jika belum diizinkan (ukuran besar, di bagian utama)
+- Tombol kecil "Konfirmasi Sudah di Rumah" (opsional — setelah anak dicatat pulang)
+
+**Navigasi Sekunder (Tab/Link di bawah):**
+- Riwayat Kepulangan: 7 hari terakhir (hari, tanggal, jam pulang)
+- Laporan Perkembangan: laporan mingguan dari guru (tampilkan yang terbaru)
+
+> **Perubahan besar dari v1:** Dashboard orang tua didesain ulang dari multi-tab menjadi single-screen. Tab/riwayat tetap ada tapi tidak menjadi fokus utama. Ini kritis untuk Pak Andi yang tidak terbiasa navigasi aplikasi.
+
+---
+
+### P2 — Penting (Target Selesai Sebelum Pitching)
+
+**F9: Konfirmasi Tiba di Rumah (Orang Tua)**
+
+Deskripsi: Setelah guru mencatat anak pulang, orang tua bisa mengetuk tombol konfirmasi "Anak sudah tiba di rumah."
+
+Acceptance Criteria:
+- Tombol muncul di dashboard orang tua setelah notifikasi kepulangan masuk
+- Konfirmasi tersimpan dengan timestamp
+- Guru bisa melihat status konfirmasi di tab kepulangan (opsional untuk guru)
+- Tidak wajib — orang tua yang tidak konfirmasi tidak mendapat pengingat
+
+> **Fitur baru.** Menutup loop keamanan: bukan hanya "anak sudah keluar sekolah" tapi "anak sudah tiba di rumah."
+
+**F10: Notifikasi Real-Time (Supabase Realtime)**
+
+Deskripsi: Dashboard orang tua terupdate real-time tanpa refresh saat guru mencatat kepulangan.
+
+Acceptance Criteria:
+- WebSocket via Supabase Realtime untuk perubahan tabel `kepulangan`
+- Fallback: polling setiap 30 detik jika WebSocket tidak bisa tersambung
+- Notifikasi browser muncul jika orang tua memberikan izin (bahkan saat tab tidak aktif)
+- Notifikasi muncul maksimal 5 detik setelah guru mencentang
+
+---
+
+### P3 — Opsional (Bonus jika Waktu Cukup)
+
+**F11: Ekspor Laporan ke PDF**
+- Tombol "Ekspor PDF" di halaman laporan
+- PDF: nama siswa, perkembangan per minggu (dengan grafik warna sederhana), riwayat kepulangan
+
+**F12: Dashboard Kepala Sekolah**
+- Ringkasan semua kelas, perbandingan per kelas/kompetensi, ekspor data
+
+**F13: Pengingat Otomatis untuk Guru**
+- Notifikasi in-app: pengingat input kepulangan (pukul estimasi + 30 menit) dan input 4C (setiap Jumat)
+
+---
+
+## 6. Arsitektur Sistem
+
+### Diagram Arsitektur
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  PENGGUNA (Guru / Orang Tua)                 │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+         ┌──────────────▼──────────────┐
+         │      Frontend (Next.js)      │
+         │  - PWA (Service Worker)      │
+         │  - Dashboard Guru            │
+         │  - Dashboard Orang Tua       │
+         │  - IndexedDB (offline store) │
+         └──────────────┬──────────────┘
+                        │  HTTPS + Supabase Client
+         ┌──────────────▼──────────────┐
+         │           Supabase           │
+         │  - PostgreSQL (Database)     │
+         │  - Auth (JWT)                │
+         │  - Realtime (WebSocket)      │
+         │  - Row-Level Security        │
+         └──────────────┬──────────────┘
+                        │
+               ┌────────▼────────┐
+               │   (Post-MVP)    │
+               │  FastAPI untuk  │
+               │  notifikasi WA  │
+               │  & laporan PDF  │
+               └─────────────────┘
+```
+
+### Alur Data: Catat Kepulangan
+
+```
+Guru centang siswa
+    │
+    ├── [Online]  → Upsert ke Supabase kepulangan
+    │                   │
+    │              Supabase Realtime → Dashboard ortu terupdate
+    │                   │
+    │              Web Push API → Notifikasi browser ortu
+    │
+    └── [Offline] → Simpan ke IndexedDB
+                        │
+                   Background Sync (saat online kembali)
+                        │
+                   Upsert ke Supabase → notifikasi terkirim
+```
+
+### Alur Data: Input Perkembangan 4C
+
+```
+Guru buka form input
+    │
+    ├── Fetch nilai minggu lalu dari Supabase (atau IndexedDB jika offline)
+    │
+    ├── Default: nilai minggu lalu tampil di setiap sel
+    │
+    ├── Guru ubah sel yang berubah
+    │
+    └── Simpan:
+            ├── [Online]  → Upsert ke Supabase → hitung deteksi tertinggal
+            └── [Offline] → Simpan ke IndexedDB → sync saat online
+```
+
+---
+
+## 7. Tech Stack & Justifikasi
+
+| Layer | Teknologi | Justifikasi |
+|---|---|---|
+| Frontend | Next.js 14 + TypeScript | App Router untuk layout kompleks; Vercel free tier; tipe aman |
+| Database & Auth | Supabase (PostgreSQL) | RLS built-in; Realtime WebSocket; free tier cukup MVP; auth built-in |
+| Offline Storage | IndexedDB via `idb` | Penyimpanan lokal terstruktur; lebih reliable dari localStorage untuk data kompleks |
+| Background Sync | Workbox (Service Worker) | Sinkronisasi otomatis saat koneksi kembali; PWA manifest |
+| Styling | Tailwind CSS | Cepat, mobile-first, tidak perlu CSS custom untuk komponen dasar |
+| Validasi | Zod + React Hook Form | Type-safe validation; UX error yang baik; tidak butuh library tambahan |
+| Notifikasi Real-Time | Supabase Realtime + Web Push API | Tanpa server WebSocket sendiri; Web Push untuk notifikasi saat tab tertutup |
+| Notifikasi WA (MVP) | Link wa.me | Tanpa API berbayar; guru yang kirim manual via WA mereka sendiri |
+
+**Mengapa tidak backend terpisah di MVP:**
+- Data ≤40 siswa per guru; deteksi tertinggal cukup dihitung di frontend
+- RLS Supabase sudah mengamankan data per user
+- Satu stack lebih cepat untuk MVP; FastAPI bisa ditambah post-MVP untuk fitur berat (notifikasi WA otomatis, PDF massal)
+
+---
+
+## 8. Skema Database Lengkap
+
+> **Wajib:** Aktifkan Row-Level Security (RLS) di semua tabel.
+
+### Tabel: profiles
+
+```sql
+CREATE TABLE public.profiles (
+  id            UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  role          VARCHAR(20) NOT NULL CHECK (role IN ('guru', 'ortu')),
+  nama          TEXT NOT NULL,
+  nip           VARCHAR(10) UNIQUE NULL,
+  kode_anak     VARCHAR(10) UNIQUE NULL,          -- 8 karakter alfanumerik
+  nomor_wa      VARCHAR(15) NULL,
+  created_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE INDEX idx_profiles_role ON public.profiles(role);
+CREATE INDEX idx_profiles_nip ON public.profiles(nip);
+CREATE INDEX idx_profiles_kode ON public.profiles(kode_anak);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own profile"
+  ON public.profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile"
+  ON public.profiles FOR UPDATE USING (auth.uid() = id);
+```
+
+### Tabel: kelas
+
+```sql
+CREATE TABLE public.kelas (
+  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  guru_id       UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  nama_kelas    VARCHAR(50) NOT NULL,
+  tahun_ajaran  VARCHAR(9) DEFAULT '2025/2026',
+  created_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+ALTER TABLE public.kelas ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Guru can CRUD their own kelas"
+  ON public.kelas FOR ALL USING (auth.uid() = guru_id);
+```
+
+### Tabel: siswa
+
+```sql
+CREATE TABLE public.siswa (
+  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  kelas_id      UUID REFERENCES public.kelas(id) ON DELETE CASCADE NOT NULL,
+  nama          TEXT NOT NULL,
+  nis           VARCHAR(20) NULL,
+  kode_ortu     VARCHAR(10) UNIQUE NOT NULL,      -- 8 karakter alfanumerik acak
+  nomor_wa_ortu VARCHAR(15) NULL,
+  created_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE INDEX idx_siswa_kelas ON public.siswa(kelas_id);
+CREATE INDEX idx_siswa_kode_ortu ON public.siswa(kode_ortu);
+
+ALTER TABLE public.siswa ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Guru can manage siswa in their kelas"
+  ON public.siswa FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM public.kelas
+    WHERE kelas.id = siswa.kelas_id AND kelas.guru_id = auth.uid()
+  ));
+```
+
+### Tabel: perkembangan
+
+```sql
+CREATE TABLE public.perkembangan (
+  id                UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  siswa_id          UUID REFERENCES public.siswa(id) ON DELETE CASCADE NOT NULL,
+  minggu            VARCHAR(10) NOT NULL,          -- format 'YYYY-WW'
+  kreativitas       VARCHAR(10) NOT NULL CHECK (kreativitas IN ('hijau', 'kuning', 'merah')),
+  kolaborasi        VARCHAR(10) NOT NULL CHECK (kolaborasi IN ('hijau', 'kuning', 'merah')),
+  berpikir_kritis   VARCHAR(10) NOT NULL CHECK (berpikir_kritis IN ('hijau', 'kuning', 'merah')),
+  komunikasi        VARCHAR(10) NOT NULL CHECK (komunikasi IN ('hijau', 'kuning', 'merah')),
+  catatan_guru      TEXT NULL,
+  updated_at        TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  UNIQUE(siswa_id, minggu)
+);
+
+CREATE INDEX idx_perkembangan_siswa ON public.perkembangan(siswa_id);
+CREATE INDEX idx_perkembangan_minggu ON public.perkembangan(minggu);
+
+ALTER TABLE public.perkembangan ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Guru can manage perkembangan for their siswa"
+  ON public.perkembangan FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM public.siswa
+    JOIN public.kelas ON kelas.id = siswa.kelas_id
+    WHERE siswa.id = perkembangan.siswa_id AND kelas.guru_id = auth.uid()
+  ));
+CREATE POLICY "Orang tua can view perkembangan of their anak"
+  ON public.perkembangan FOR SELECT
+  USING (EXISTS (
+    SELECT 1 FROM public.siswa
+    WHERE siswa.id = perkembangan.siswa_id
+    AND siswa.kode_ortu = (SELECT kode_anak FROM public.profiles WHERE id = auth.uid())
+  ));
+```
+
+### Tabel: kepulangan
+
+```sql
+CREATE TABLE public.kepulangan (
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  siswa_id        UUID REFERENCES public.siswa(id) ON DELETE CASCADE NOT NULL,
+  tanggal         DATE NOT NULL,
+  estimasi_pulang TIME NULL,                       -- diset guru di pagi hari
+  jam_pulang      TIME NULL,                       -- NULL = belum pulang
+  jam_tiba_rumah  TIME NULL,                       -- konfirmasi dari orang tua
+  dicatat_oleh    UUID REFERENCES auth.users(id),
+  created_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  UNIQUE(siswa_id, tanggal)
+);
+
+CREATE INDEX idx_kepulangan_siswa_tanggal ON public.kepulangan(siswa_id, tanggal DESC);
+
+ALTER TABLE public.kepulangan ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Guru can manage kepulangan for their siswa"
+  ON public.kepulangan FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM public.siswa
+    JOIN public.kelas ON kelas.id = siswa.kelas_id
+    WHERE siswa.id = kepulangan.siswa_id AND kelas.guru_id = auth.uid()
+  ));
+CREATE POLICY "Orang tua can view and update (tiba_rumah) kepulangan of their anak"
+  ON public.kepulangan FOR SELECT
+  USING (EXISTS (
+    SELECT 1 FROM public.siswa
+    WHERE siswa.id = kepulangan.siswa_id
+    AND siswa.kode_ortu = (SELECT kode_anak FROM public.profiles WHERE id = auth.uid())
+  ));
+```
+
+### Tabel: hari_libur
+
+```sql
+CREATE TABLE public.hari_libur (
+  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  kelas_id      UUID REFERENCES public.kelas(id) ON DELETE CASCADE NOT NULL,
+  tanggal       DATE NOT NULL,
+  keterangan    TEXT NULL,                         -- "Libur Nasional", "Study Tour", dsb
+  tipe          VARCHAR(20) DEFAULT 'libur' CHECK (tipe IN ('libur', 'agenda_khusus')),
+  created_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  UNIQUE(kelas_id, tanggal)
+);
+
+ALTER TABLE public.hari_libur ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Guru can manage hari_libur for their kelas"
+  ON public.hari_libur FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM public.kelas
+    WHERE kelas.id = hari_libur.kelas_id AND kelas.guru_id = auth.uid()
+  ));
+CREATE POLICY "Orang tua can view hari_libur for their anak kelas"
+  ON public.hari_libur FOR SELECT
+  USING (EXISTS (
+    SELECT 1 FROM public.siswa
+    JOIN public.kelas ON kelas.id = siswa.kelas_id
+    WHERE kelas.id = hari_libur.kelas_id
+    AND siswa.kode_ortu = (SELECT kode_anak FROM public.profiles WHERE id = auth.uid())
+  ));
+```
+
+### Tabel: notifikasi
+
+```sql
+CREATE TABLE public.notifikasi (
+  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  siswa_id      UUID REFERENCES public.siswa(id) ON DELETE CASCADE,
+  tipe          VARCHAR(20) NOT NULL CHECK (tipe IN ('kepulangan', 'laporan', 'peringatan')),
+  pesan         TEXT NOT NULL,
+  status        VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
+  dikirim_via   VARCHAR(20),
+  created_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+ALTER TABLE public.notifikasi ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view notifications for their related siswa"
+  ON public.notifikasi FOR SELECT
+  USING (EXISTS (
+    SELECT 1 FROM public.siswa
+    LEFT JOIN public.kelas ON kelas.id = siswa.kelas_id
+    WHERE siswa.id = notifikasi.siswa_id
+    AND (
+      kelas.guru_id = auth.uid()
+      OR siswa.kode_ortu = (SELECT kode_anak FROM public.profiles WHERE id = auth.uid())
+    )
+  ));
+```
+
+### Database Functions & Triggers
+
+```sql
+-- Generate kode_ortu 8 karakter alfanumerik
+CREATE OR REPLACE FUNCTION public.generate_kode_ortu()
+RETURNS TRIGGER AS $$
+DECLARE
+  chars TEXT := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; -- hapus karakter mirip (0/O, 1/I)
+  new_kode TEXT := '';
+  i INT;
+BEGIN
+  LOOP
+    new_kode := '';
+    FOR i IN 1..8 LOOP
+      new_kode := new_kode || substr(chars, floor(random() * length(chars) + 1)::int, 1);
+    END LOOP;
+    -- Tambah separator untuk keterbacaan: XXXX-XXXX
+    new_kode := substr(new_kode, 1, 4) || '-' || substr(new_kode, 5, 4);
+    EXIT WHEN NOT EXISTS (SELECT 1 FROM public.siswa WHERE kode_ortu = new_kode);
+  END LOOP;
+  NEW.kode_ortu := new_kode;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_generate_kode_ortu
+  BEFORE INSERT ON public.siswa
+  FOR EACH ROW
+  WHEN (NEW.kode_ortu IS NULL OR NEW.kode_ortu = '')
+  EXECUTE FUNCTION public.generate_kode_ortu();
+
+-- Update timestamp otomatis
+CREATE OR REPLACE FUNCTION public.update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_kepulangan_updated_at
+  BEFORE UPDATE ON public.kepulangan
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+```
+
+---
+
+## 9. Arsitektur Keamanan
+
+### 9.1 Row-Level Security (RLS) — Non-Negotiable
+
+Setiap tabel memiliki policy RLS. Tidak ada query yang bisa bypass RLS dari frontend.
+
+### 9.2 Autentikasi & Kode Orang Tua
+
+**Guru:** Email + password via Supabase Auth (JWT)
+
+**Orang Tua:** Kode 8 karakter alfanumerik (format `XXXX-XXXX`)
+- Tidak bisa ditebak: ~33^8 kemungkinan (tanpa karakter ambigu)
+- Rate limiting: 5 gagal/jam per IP → locked 15 menit
+- Guru bisa reset kode kapan saja; kode lama langsung invalid
+- Opsi: gunakan kode sebagai password di Supabase Auth (email = `{kode}@pantau.internal`)
+
+### 9.3 Input Validation
+
+- Frontend: React Hook Form + Zod
+- Database: CHECK constraints di semua kolom enum
+- API Route: Zod untuk request body validation
+
+### 9.4 Hal yang Tidak Boleh Dilakukan
+
+- ❌ Service role key di frontend
+- ❌ Query tanpa filter `auth.uid()`
+- ❌ Menyimpan kode orang tua di URL (gunakan session)
+- ❌ Log yang mengandung data siswa
+
+---
+
+## 10. Sistem Notifikasi & Real-Time
+
+### 10.1 Notifikasi Kepulangan Real-Time
+
+```typescript
+// hooks/useRealtimeKepulangan.ts
+export function useRealtimeKepulangan(siswaId: string, onUpdate: (data: KepulanganRow) => void) {
+  const supabase = useSupabase();
+  useEffect(() => {
+    const channel = supabase
+      .channel(`kepulangan-${siswaId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'kepulangan', filter: `siswa_id=eq.${siswaId}` },
+        (payload) => onUpdate(payload.new as KepulanganRow)
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [siswaId]);
+}
+```
+
+### 10.2 Web Push Notification
+
+```typescript
+// Minta izin
+async function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    const permission = await Notification.requestPermission();
+    return permission === 'granted';
+  }
+  return Notification.permission === 'granted';
+}
+
+// Kirim notifikasi
+function sendPushNotification(namaSiswa: string, jamPulang: string) {
+  if (Notification.permission === 'granted') {
+    new Notification('PantauSiswa', {
+      body: `Ananda ${namaSiswa} telah pulang pukul ${jamPulang}. Ketuk untuk konfirmasi tiba di rumah.`,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/badge-72.png',
+      tag: `pulang-${namaSiswa}`,   // replace notifikasi lama jika ada
+    });
+  }
+}
+```
+
+### 10.3 Notifikasi WhatsApp (MVP)
+
+```typescript
+function generateWALink(nomorWA: string, pesan: string): string {
+  const encoded = encodeURIComponent(pesan);
+  const nomor = nomorWA.replace(/^0/, '62'); // ganti 0 → 62
+  return `https://wa.me/${nomor}?text=${encoded}`;
+}
+```
+
+---
+
+## 11. Offline-First Architecture
+
+> Offline adalah kebutuhan utama, bukan fitur bonus.
+
+### 11.1 Strategi
+
+- **Service Worker** (via Workbox) untuk cache aset statis dan API response
+- **IndexedDB** (via `idb`) sebagai local store untuk data operasional
+- **Background Sync API** untuk mengirim data yang tersimpan saat offline
+
+### 11.2 Data yang Disimpan Offline
+
+| Data | Disimpan Offline | Prioritas Sync |
+|---|---|---|
+| Catat kepulangan | ✅ Ya | Sangat tinggi (segera sync) |
+| Input perkembangan 4C | ✅ Ya | Tinggi (sync saat online) |
+| Daftar siswa | ✅ Ya (read-only cache) | Rendah (refresh harian) |
+| Riwayat kepulangan | ✅ Ya (7 hari terakhir) | Rendah |
+| Laporan | ❌ Tidak | — |
+
+### 11.3 Implementasi Background Sync
+
+```typescript
+// sw.js (Service Worker)
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-kepulangan') {
+    event.waitUntil(syncKepulangan());
+  }
+  if (event.tag === 'sync-perkembangan') {
+    event.waitUntil(syncPerkembangan());
+  }
+});
+
+async function syncKepulangan() {
+  const db = await openDB('pantau-siswa', 1);
+  const pending = await db.getAll('kepulangan-pending');
+  for (const item of pending) {
+    try {
+      await supabase.from('kepulangan').upsert(item);
+      await db.delete('kepulangan-pending', item.id);
+    } catch (err) {
+      console.error('Sync failed for', item.id, err);
+    }
+  }
+}
+```
+
+### 11.4 UX Saat Offline
+
+- Banner kuning di atas: *"Anda sedang offline. Data akan tersinkron otomatis saat koneksi kembali."*
+- Semua aksi tetap bisa dilakukan; tidak ada tombol yang di-disable
+- Indikator "Pending sync: 3 item" di status bar aplikasi
+- Saat kembali online: banner hijau *"Tersinkron ✓"* selama 3 detik
+
+---
+
+## 12. Error Handling & Edge Cases
+
+### Matriks Error
+
+| Skenario | Perilaku | Pesan ke Pengguna |
+|---|---|---|
+| Login NIP/kode salah | Tolak, catat percobaan | "NIP/kode tidak valid. X percobaan tersisa." |
+| Rate limit tercapai | Lock 15 menit | "Terlalu banyak percobaan. Coba lagi dalam 15 menit." |
+| Gagal simpan kepulangan (online) | Retry 3×, lalu offline queue | "Koneksi lambat. Data disimpan lokal dan akan tersinkron." |
+| Notifikasi browser diblokir | Fallback WA link | "Notifikasi diblokir. Gunakan laporan WhatsApp sebagai alternatif." |
+| Guru lupa set estimasi pulang | Default 14.00, tampilkan prompt | "Belum ada estimasi pulang hari ini. Set sekarang?" |
+| Kelas masih kosong | Onboarding screen | Panduan impor CSV dengan contoh format |
+| Tidak ada data 4C minggu ini | Tampilkan nilai minggu lalu sebagai default | Badge "Belum diperbarui minggu ini" |
+| Kode orang tua bocor | Guru reset kode | Kode lama langsung invalid setelah reset |
+| Hari libur tidak diset | Dashboard ortu normal | Guru dapat pengingat: "Besok ada siswa? Pastikan atur hari libur jika tidak." |
+
+---
+
+## 13. Alur Pengguna Lengkap
+
+### Alur Guru
+
+```
+[1] Buka aplikasi → login (email + password)
+[2] Onboarding (pertama kali): impor CSV → kode ortu tergenerate
+[3] Dashboard: lihat prioritas hari ini (siapa yang butuh perhatian)
+[4] Pagi hari: set estimasi jam pulang + tandai hari libur jika perlu
+[5] Siang (13.00-15.00): tab Kepulangan → centang siswa yang pulang → notifikasi terkirim
+[6] Jika melewati estimasi + 30 menit, terima pengingat in-app
+[7] Setiap Jumat: tab Perkembangan → nilai minggu lalu tampil → ubah yang berubah → simpan
+[8] Sistem otomatis deteksi 2× merah → peringatan + rekomendasi muncul di dashboard
+[9] Tab Laporan → generate laporan minggu ini → salin / kirim via WA ke orang tua
+```
+
+### Alur Orang Tua
+
+```
+[1] Terima kode anak dari guru (format: XXXX-XXXX)
+[2] Buka aplikasi → login dengan kode anak
+[3] Layar utama: status anak (belum pulang / sudah pulang + jam)
+[4] Saat anak dicatat pulang: notifikasi browser muncul
+[5] Klik notifikasi → dashboard terupdate → tombol "Konfirmasi Sudah di Rumah"
+[6] (Opsional) Ketuk tombol konfirmasi
+[7] (Kapan saja) Tab Riwayat → lihat riwayat 7 hari → Tab Laporan → baca perkembangan 4C
+```
+
+---
+
+## 14. Testing Strategy
+
+### 14.1 Unit Tests (Jest + React Testing Library)
+
+```typescript
+// lib/detection.test.ts
+import { detectTertinggal, generateRekomendasi } from '../lib/detection';
+
+test('deteksi siswa dengan 2× merah di kompetensi yang sama', () => {
+  const history = [
+    { minggu: '2025-W22', komunikasi: 'merah' },
+    { minggu: '2025-W23', komunikasi: 'merah' },
+  ];
+  expect(detectTertinggal(history, 'komunikasi')).toBe(true);
+});
+
+test('tidak deteksi jika merah tidak berurutan', () => {
+  const history = [
+    { minggu: '2025-W21', komunikasi: 'merah' },
+    { minggu: '2025-W22', komunikasi: 'hijau' },
+    { minggu: '2025-W23', komunikasi: 'merah' },
+  ];
+  expect(detectTertinggal(history, 'komunikasi')).toBe(false);
+});
+
+test('generate rekomendasi untuk kompetensi komunikasi', () => {
+  const rekomendasi = generateRekomendasi('komunikasi');
+  expect(rekomendasi).toContain('diskusi');
+});
+```
+
+### 14.2 Integration Tests (Playwright)
+
+- Login guru → impor CSV → verifikasi 40 siswa muncul
+- Input perkembangan → simpan → verifikasi peringatan muncul di dashboard
+- Catat kepulangan → verifikasi notifikasi real-time di tab orang tua
+- Login orang tua → verifikasi status tepat → konfirmasi tiba di rumah
+- Skenario offline: matikan jaringan → catat kepulangan → hidupkan → verifikasi sync
+
+### 14.3 Manual Test Checklist (Pre-Demo)
+
+```
+□ Guru impor CSV 40 siswa → data muncul dengan kode ortu format XXXX-XXXX
+□ Guru set estimasi pulang 13.30
+□ Guru input perkembangan → nilai minggu lalu tampil sebagai default
+□ Siswa dengan 2× merah → peringatan + rekomendasi muncul di dashboard
+□ Guru catat kepulangan 3 siswa → timestamp terekam
+□ Dashboard orang tua real-time (buka di tab lain) → notifikasi muncul ≤5 detik
+□ Orang tua konfirmasi tiba di rumah → status terupdate
+□ Mode offline: matikan WiFi → catat kepulangan → hidupkan → verifikasi tersinkron
+□ Hari libur: set besok libur → dashboard ortu besok tampilkan info libur
+□ Generate laporan → format benar, bahasa mudah dipahami
+□ Salin laporan + link WA berfungsi
+□ Rate limiting: 5× login salah → terkunci
+□ Reset kode ortu → kode lama tidak bisa dipakai → kode baru berfungsi
+□ Data tetap ada setelah refresh
+□ Logout → login → data sama
+```
+
+---
+
+## 15. Deployment & DevOps
+
+### 15.1 Struktur Repositori
+
+```
+pantau-siswa/
+├── app/
+│   ├── (auth)/login/
+│   ├── (guru)/
+│   │   ├── page.tsx
+│   │   ├── perkembangan/
+│   │   ├── kepulangan/
+│   │   ├── kalender/
+│   │   └── laporan/
+│   ├── (ortu)/
+│   │   ├── page.tsx
+│   │   ├── riwayat/
+│   │   └── laporan/
+│   └── api/
+├── components/
+├── hooks/
+│   ├── useRealtimeKepulangan.ts
+│   ├── useOfflineSync.ts
+│   └── useNotifikasi.ts
+├── lib/
+│   ├── supabase/
+│   ├── detection.ts
+│   ├── laporan.ts
+│   └── offline-db.ts
+├── public/
+│   ├── manifest.json
+│   ├── sw.js
+│   └── icons/
+├── supabase/migrations/
+├── .env.local.example
+└── package.json
+```
+
+### 15.2 Deployment Stack
+
+- **Frontend:** Vercel (gratis, auto-deploy dari GitHub push ke `main`)
+- **Database & Auth:** Supabase (free tier: 500MB DB, 2GB bandwidth)
+- **Domain:** Opsional — bisa pakai subdomain Vercel gratis
+
+### 15.3 CI/CD (GitHub Actions)
+
+```yaml
+name: CI/CD
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with: { node-version: '18' }
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm run test
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.ORG_ID }}
+          vercel-project-id: ${{ secrets.PROJECT_ID }}
+          vercel-args: '--prod'
+```
+
+---
+
+## 16. Monitoring & Observabilitas
+
+### 16.1 Error Tracking
+- **Sentry** (free: 5k events/bulan) — integrasi Next.js satu baris
+- Track khusus: gagal sync offline, gagal notifikasi, error RLS
+
+### 16.2 Uptime Monitoring
+- **UptimeRobot** — ping `/api/health` setiap 5 menit, alert via email
+
+### 16.3 Metrics yang Dipantau
+- Rata-rata waktu dari centang kepulangan ke notifikasi masuk ke orang tua
+- Persentase data berhasil sync setelah offline
+- Jumlah login gagal per hari (deteksi brute-force)
+
+---
+
+## 17. Strategi Demo
+
+### Urutan Demo (8 menit)
+
+| Waktu | Bagian | Detail |
+|---|---|---|
+| 0:00–1:30 | Problem | "Bu Dewi, 38 siswa, 8 jam sehari. Bagaimana dia tahu siapa yang tertinggal?" |
+| 1:30–3:30 | Demo Guru: Input 4C | Dashboard kosong → isi 4C → nilai minggu lalu tampil sebagai acuan → 2 siswa dapat peringatan |
+| 3:30–5:30 | Demo Guru: Kepulangan | Set estimasi pulang → centang 3 siswa → dashboard ortu di tab lain langsung terupdate |
+| 5:30–7:00 | Demo Orang Tua | Layar utama: status + notifikasi → konfirmasi tiba rumah → riwayat & laporan |
+| 7:00–8:00 | Laporan + Penutup | Generate laporan → kirim WA → "PantauSiswa: satu masalah nyata, satu solusi terintegrasi." |
+
+### Persiapan Teknis Pra-Demo
+
+```
+□ Deploy ke Vercel + Supabase
+□ Data dummy: 1 guru, 1 kelas, 20 siswa
+□ Siapkan data 4C 2 minggu lalu (agar deteksi tertinggal bisa di-demo)
+□ Kode ortu untuk 1 siswa diketahui untuk demo login ortu
+□ Test notifikasi browser di Chrome (izinkan dari settings)
+□ Siapkan 2 device/tab: satu guru, satu ortu — demo real-time side-by-side
+□ Backup: screen recording jika demo live gagal
+□ Koneksi internet stabil; siapkan hotspot sebagai backup
+```
+
+---
+
+## 18. Post-MVP Roadmap
+
+### Fase 2 (Bulan 1-3)
+
+| Fitur | Nilai | Kompleksitas |
+|---|---|---|
+| Dashboard Kepala Sekolah (multi-kelas) | Tinggi | Sedang |
+| Grafik perkembangan per siswa (sparkline) | Tinggi | Rendah |
+| Ekspor PDF per siswa | Sedang | Rendah |
+| Import XLSX | Rendah | Rendah |
+| Pengingat otomatis (push ke guru) | Sedang | Rendah |
+| Dark mode | Rendah | Rendah |
+
+### Fase 3 (Bulan 4-12)
+
+| Fitur | Nilai | Kompleksitas |
+|---|---|---|
+| WhatsApp Business API (notifikasi otomatis) | Sangat Tinggi | Tinggi |
+| Chat guru ↔ orang tua | Tinggi | Tinggi |
+| Export ke Dapodik (Kemendikbud) | Tinggi | Sangat Tinggi |
+| Multi-bahasa (ID, EN) | Sedang | Rendah |
+| Analisis kelas (perbandingan antar minggu/semester) | Sedang | Sedang |
+
+---
+
+## 19. Risiko & Mitigasi
+
+| Risiko | Kemungkinan | Dampak | Mitigasi |
+|---|---|---|---|
+| Guru lupa set estimasi pulang | Tinggi | Sedang | Default 14.00 otomatis; prompt di pagi hari |
+| Guru lupa centang kepulangan | Tinggi | Tinggi | Pengingat in-app 30 menit setelah estimasi; notif tidak pernah dikirim = orang tua cemas |
+| Guru isi 4C asal klik hijau semua | Tinggi | Tinggi | Tampilkan nilai minggu lalu; jika semua hijau, minta konfirmasi sekali |
+| Notifikasi terlambat (koneksi lambat) | Sedang | Tinggi | Offline-first + background sync; estimasi sebagai baseline ekspektasi |
+| Kode ortu bocor | Rendah | Sedang | Format XXXX-XXXX tidak bisa ditebak + rate limiting + fitur reset kode |
+| Data hilang saat clear cache | Sedang | Tinggi | Data utama di Supabase, bukan browser; offline cache hanya pendukung |
+| Sekolah tanpa internet stabil | Tinggi | Tinggi | PWA offline-first adalah syarat MVP, bukan fitur opsional |
+| Orang tua panik karena tidak ada notifikasi (hari libur) | Sedang | Tinggi | Fitur hari libur wajib ada sebelum launch |
+
+---
+
+## 20. Pertimbangan Bisnis & Legal
+
+### 20.1 Model Bisnis
+
+**MVP:** Gratis sepenuhnya.
+
+**Post-MVP (12+ bulan):**
+- Freemium: fitur dasar gratis selamanya; fitur lanjutan (dashboard kepsek, PDF, WA API) berbayar Rp 50.000/bulan/sekolah
+- Sekolah negeri: pendanaan via CSR atau program Kemendikbud
+- Sekolah swasta: lisensi tahunan
+
+### 20.2 Aspek Legal Indonesia
+
+- **UU PDP (Perlindungan Data Pribadi):** Data siswa wajib dilindungi. Kebijakan privasi wajib ada sebelum launch. Persetujuan orang tua wajib (checklist saat registrasi pertama).
+- **Penyimpanan data:** Supabase tidak punya region Indonesia. Untuk MVP tidak masalah. Untuk production 2026+: evaluasi hosting lokal (IDCloudHost, Biznet) atau pantau regulasi terbaru.
+- **Syarat & Ketentuan:** Wajib ada. Minimal: tanggung jawab terbatas untuk keterlambatan notifikasi; larangan penggunaan tidak sah.
+
+### 20.3 Komitmen Etika
+
+- Data siswa tidak pernah dijual atau dibagikan ke pihak ketiga
+- Notifikasi tidak boleh mengandung iklan
+- Guru bisa hapus data siswa secara permanen (hak untuk dilupakan — GDPR-compatible)
+- Tidak ada tracking perilaku pengguna untuk keperluan komersial
+
+---
+
+## 21. Variabel Lingkungan
+
+### Frontend (.env.local)
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# App
+NEXT_PUBLIC_APP_NAME=PantauSiswa
+NEXT_PUBLIC_APP_VERSION=1.0.0
+
+# Fitur toggle
+NEXT_PUBLIC_ENABLE_OFFLINE=true
+NEXT_PUBLIC_ENABLE_KONFIRMASI_RUMAH=true
+
+# Opsional: WhatsApp API (post-MVP)
+# NEXT_PUBLIC_WA_API_KEY=...
+```
+
+---
+
+## 22. Lampiran & Referensi
+
+### Checklist Pengembangan (4 Minggu)
+
+**Minggu 1: Setup & Database**
+- [ ] Inisialisasi Next.js 14 + TypeScript + Tailwind
+- [ ] Setup Supabase: jalankan semua migration SQL
+- [ ] Implementasi RLS untuk semua tabel + test
+- [ ] PWA setup: manifest.json + Service Worker dasar
+- [ ] Login guru (Supabase Auth) + login orang tua (kode XXXX-XXXX)
+
+**Minggu 2: Fitur Guru**
+- [ ] Dashboard guru: kartu ringkasan + prioritas siswa
+- [ ] Manajemen siswa: CRUD + impor CSV + tampilkan kode ortu
+- [ ] Input perkembangan 4C: nilai minggu lalu sebagai default
+- [ ] Deteksi tertinggal + rekomendasi teks
+- [ ] Mode hari libur / agenda sekolah
+- [ ] Onboarding screen untuk kelas kosong
+
+**Minggu 3: Kepulangan, Notifikasi & Offline**
+- [ ] Tab catat kepulangan + set estimasi pulang
+- [ ] Pengingat in-app jika melewati estimasi
+- [ ] Supabase Realtime subscription
+- [ ] Web Push Notification (izin + kirim)
+- [ ] IndexedDB setup + Background Sync untuk kepulangan offline
+- [ ] Dashboard orang tua: satu layar utama
+- [ ] Konfirmasi tiba di rumah (orang tua)
+- [ ] UX offline: banner status, pending sync indicator
+
+**Minggu 4: Laporan, Polish & Testing**
+- [ ] Generator laporan mingguan (teks, bahasa sederhana)
+- [ ] Tombol salin per siswa, salin semua, link WA
+- [ ] Riwayat kepulangan orang tua (7 hari)
+- [ ] Rate limiting login (5 gagal → locked)
+- [ ] Fitur reset kode orang tua
+- [ ] Responsif mobile + desktop
+- [ ] Unit tests + integration tests kritis
+- [ ] Manual test checklist 100% hijau
+
+### Dependencies (package.json)
+
+```json
+{
+  "dependencies": {
+    "next": "14.2.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@supabase/supabase-js": "^2.44.1",
+    "@supabase/ssr": "^0.3.0",
+    "tailwindcss": "^3.4.4",
+    "zod": "^3.23.8",
+    "react-hook-form": "^7.52.0",
+    "@hookform/resolvers": "^3.6.0",
+    "idb": "^8.0.0",
+    "workbox-window": "^7.1.0",
+    "papaparse": "^5.4.1",
+    "date-fns": "^3.6.0",
+    "lucide-react": "^0.394.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "@types/react": "^18.3.3",
+    "typescript": "^5.4.5",
+    "jest": "^29.7.0",
+    "@testing-library/react": "^15.0.0",
+    "playwright": "^1.44.0"
+  }
+}
+```
+
+### Referensi
+
+- [Supabase Row Level Security](https://supabase.com/docs/guides/auth/row-level-security)
+- [Supabase Realtime Documentation](https://supabase.com/docs/guides/realtime)
+- [Next.js App Router](https://nextjs.org/docs/app)
+- [Web Notifications API](https://developer.mozilla.org/en-US/docs/Web/API/Notifications_API)
+- [Background Sync API](https://developer.mozilla.org/en-US/docs/Web/API/Background_Synchronization_API)
+- [Workbox (PWA)](https://developer.chrome.com/docs/workbox)
+- [idb (IndexedDB wrapper)](https://github.com/jakearchibald/idb)
+- [UU PDP Indonesia](https://jdih.kominfo.go.id/produk_hukum/view/id/549)
